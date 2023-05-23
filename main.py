@@ -1,4 +1,6 @@
 import random
+
+
 class BoardOutException(Exception):
     def __str__(self):
         return "Точка за пределами поля"
@@ -18,8 +20,10 @@ class DuplicateShotException(Exception):
     def __str__(self):
         return "Вы туда уже стреляли"
 
+
 class BadBoard(Exception):
     pass
+
 
 class Dot:
     def __init__(self, x, y):
@@ -67,7 +71,6 @@ class Ship:
         self._life = value
 
 
-
 class Board:
     def __init__(self, enemy=False):
         self._field = [["O", "O", "O", "O", "O", "O"],
@@ -78,7 +81,7 @@ class Board:
                        ["O", "O", "O", "O", "O", "O"]]
         self._ships = []
         self._hid = enemy
-        self._live_ship_count = 0
+        self._total_life = 0
 
     def __str__(self):
         if self._hid:
@@ -90,7 +93,7 @@ class Board:
         for line in self._field:
             str += f'{n} '
             for cage in line:
-                if cage == "\u25fc" and self._hid == True:
+                if cage == "\u25fc" and self._hid:
                     str += '| 0 '
                 else:
                     str += f'| {cage} '
@@ -108,7 +111,7 @@ class Board:
         for dot in ship.dots():
             for i in range(3):
                 for j in range(3):
-                    contur_dot = Dot(dot.x + i - 1, dot.y + j -1)
+                    contur_dot = Dot(dot.x + i - 1, dot.y + j - 1)
                     if not (contur_dot in ship.dots() or self.out(contur_dot)):
                         self._field[contur_dot.x][contur_dot.y] = "T"
 
@@ -121,6 +124,7 @@ class Board:
                 correct_place = False
         if correct_place:
             self._ships.append(ship)
+            self._total_life += ship.life
             for dot in ship.dots():
                 self._field[dot.x][dot.y] = "\u25fc"
         else:
@@ -136,7 +140,8 @@ class Board:
             self._field[dot.x][dot.y] = "X"
             for ship in self._ships:
                 if dot in ship.dots():
-                    ship.life -=1
+                    ship.life -= 1
+                    self._total_life -= 1
                     if ship.life == 0:
                         self.contour(ship)
                         if not auto:
@@ -153,11 +158,9 @@ class Board:
                 if self._field[i][j] == "T":
                     self._field[i][j] = "O"
 
+    @property
     def total_life(self):
-        life = 0
-        for ship in self._ships:
-            life += ship.life
-        return life
+        return self._total_life
 
 
 class Player():
@@ -218,6 +221,7 @@ class AI(Player):
         self._possible_shots.pop(x)
         return hit
 
+
 class Game():
     def __init__(self):
         self.pl_board = self.random_board()
@@ -264,22 +268,21 @@ class Game():
 
     def loop(self):
         enemy_turn = False
-        game_end = False
-        while not game_end:
+        player = self.user
+        while player.board_enemy.total_life:
             hit = True
-            if enemy_turn:
-                player = self.ai
-            else:
-                player = self.user
             while hit:
                 hit = player.move(auto=enemy_turn)
                 if hit:
-                    game_end = not player.board_enemy.total_life()
-                    if game_end:
+                    if not player.board_enemy.total_life:
                         print(player.board_enemy)
                         print("Вы проиграли") if enemy_turn else print("Вы победили")
                         break
             enemy_turn = not enemy_turn
+            if enemy_turn:
+                player = self.ai
+            else:
+                player = self.user
 
 
     def start(self):
